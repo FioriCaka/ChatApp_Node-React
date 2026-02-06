@@ -1,12 +1,9 @@
 import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
-import { ENV } from "../lib/env.js";
-import { sendWelcomeEmail } from "../emails/emailHandlers.js";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
-  console.log(fullName, email, password);
   try {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -43,16 +40,23 @@ export const signup = async (req, res) => {
         _id: newUser._id,
         fullName: newUser.fullName,
         email: newUser.email,
-        profilePic: newUser.profilePic,
+        profilePicture: newUser.profilePicture,
       });
 
-      try {
-        await sendWelcomeEmail(newUser.email, newUser.fullName, ENV.CLIENT_URL);
-      } catch (error) {}
+      // Email sending disabled for local-only setup.
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
   } catch (error) {
+    if (error?.code === 11000) {
+      const field = error?.keyValue ? Object.keys(error.keyValue)[0] : "field";
+      const value = error?.keyValue ? error.keyValue[field] : "value";
+      return res.status(400).json({
+        message: `${field} already exists: ${value}`,
+        field,
+      });
+    }
+    console.error("Signup error:", error);
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
@@ -71,7 +75,7 @@ export const login = async (req, res) => {
     if (!user)
       return res.status(400).json({ message: "Invalid email or password" });
 
-    isPasswordCorrect = await bcrypt.compare(password, user.password);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
     if (!isPasswordCorrect)
       return res.status(400).json({ message: "Invalid email or password" });
 
@@ -80,7 +84,7 @@ export const login = async (req, res) => {
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
-      profilePic: user.profilePic,
+      profilePicture: user.profilePicture,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -95,23 +99,23 @@ export const logout = async (_, res) => {
   res.status(200).json({ message: "Logged out successfully" });
 };
 
-export const updateProfile = async (res, req) => {
+export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body;
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile picture is required" });
-    }
+    const profilePicture = req.body.profilePicture || req.body.profilePic || "";
+    const fullName = req.body.fullName || "";
     const userId = req.user._id;
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
-
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
+      {
+        ...(profilePicture ? { profilePicture } : {}),
+        ...(fullName ? { fullName } : {}),
+      },
+      { new: true },
     );
 
     res.status(200).json(updatedUser);
   } catch (error) {
+    console.error("Update profile error:", error);
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });

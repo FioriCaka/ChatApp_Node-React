@@ -19,6 +19,13 @@ export const protectRoute = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    if (
+      error?.name === "JsonWebTokenError" ||
+      error?.name === "TokenExpiredError"
+    ) {
+      res.cookie("jwt", "", { maxAge: 0 });
+      return res.status(401).json({ message: "Unauthorized, invalid token" });
+    }
     console.error("Auth Middleware Error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
