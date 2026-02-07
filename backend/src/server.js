@@ -4,6 +4,7 @@ import { ENV } from "./lib/env.js";
 import authRoutes from "./routes/auth.route.js";
 import messagesRoutes from "./routes/messages.route.js";
 import path from "path";
+import fs from "fs";
 import { connectDB } from "./lib/db.js";
 import cookieParser from "cookie-parser";
 import { initSocket } from "./socket.js";
@@ -11,10 +12,16 @@ import { initSocket } from "./socket.js";
 const app = express();
 const httpServer = http.createServer(app);
 const __dirname = path.resolve();
+const uploadsDir = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 app.use(cookieParser());
+app.use("/uploads", express.static(uploadsDir));
 
 app.use((req, res, next) => {
   const origin = ENV.CLIENT_URL || "http://localhost:5173";

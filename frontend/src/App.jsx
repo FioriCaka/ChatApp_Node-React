@@ -1,24 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { authApi, messagesApi } from "./api";
+import AuthView from "./components/AuthView";
+import ChatPanel from "./components/ChatPanel";
+import ForwardModal from "./components/ForwardModal";
+import Notifications from "./components/Notifications";
+import ProfileModal from "./components/ProfileModal";
+import Sidebar from "./components/Sidebar";
+import { EMOTES, STICKERS } from "./lib/chatConstants";
 import "./App.css";
 
 const emptyForm = { fullName: "", email: "", password: "" };
 const emptyProfile = { fullName: "", profilePicture: "" };
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
-
-const formatTime = (value) =>
-  new Date(value).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-const formatDay = (value) =>
-  new Date(value).toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
 
 function App() {
   const [user, setUser] = useState(null);
@@ -41,6 +35,14 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [replyTo, setReplyTo] = useState(null);
+  const [forwardFrom, setForwardFrom] = useState(null);
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [selectedForwardContact, setSelectedForwardContact] = useState(null);
+  const [showEmotes, setShowEmotes] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
+  const [sticker, setSticker] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(emptyProfile);
 
@@ -112,6 +114,18 @@ function App() {
     if (!contactId) return;
     const data = await messagesApi.messages(contactId);
     setMessages(data);
+    if (socketRef.current && user?._id) {
+      data
+        .filter(
+          (msg) =>
+            msg.receiverId === user._id && !msg.deliveredAt && !msg.readAt,
+        )
+        .forEach((msg) =>
+          socketRef.current.emit("message:delivered", {
+            messageId: msg._id,
+          }),
+        );
+    }
   };
 
   const scrollToBottom = () => {
@@ -166,6 +180,7 @@ function App() {
     });
 
     socket.on("message:new", (payload) => {
+      socket.emit("message:delivered", { messageId: payload._id });
       const senderId = String(payload.senderId);
       if (activeContactId && senderId === String(activeContactId)) {
         setMessages((prev) => [...prev, payload]);
@@ -201,11 +216,25 @@ function App() {
       setMessages((prev) =>
         prev.map((msg) =>
           messageIds.includes(msg._id)
-            ? { ...msg, readAt: new Date().toISOString() }
+            ? {
+                ...msg,
+                readAt: new Date().toISOString(),
+                deliveredAt: msg.deliveredAt || new Date().toISOString(),
+              }
             : msg,
         ),
       );
       loadChats();
+    });
+
+    socket.on("message:delivered", ({ messageId, deliveredAt }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? { ...msg, deliveredAt: deliveredAt || new Date().toISOString() }
+            : msg,
+        ),
+      );
     });
 
     socket.on("typing", ({ from, isTyping }) => {
@@ -213,6 +242,14 @@ function App() {
         ...prev,
         [from]: isTyping,
       }));
+    });
+
+    socket.on("message:reaction", ({ messageId, reactions }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId ? { ...msg, reactions } : msg,
+        ),
+      );
     });
 
     return () => {
@@ -277,21 +314,37 @@ function App() {
   const selectContact = (contact) => {
     setActiveContact(contact);
     setTab("chats");
+    setReplyTo(null);
+    setSidebarOpen(false);
   };
 
   const handleSendMessage = async (event) => {
     event.preventDefault();
-    if (!activeContactId || (!messageText.trim() && !attachment)) return;
+    if (
+      !activeContactId ||
+      (!messageText.trim() && !attachment && !forwardFrom && !sticker)
+    )
+      return;
     setStatus("");
     try {
       await messagesApi.send(activeContactId, {
         message: messageText.trim(),
         image: attachment?.image || "",
+        fileUrl: attachment?.fileUrl || "",
         fileName: attachment?.fileName || "",
         fileType: attachment?.fileType || "",
+        fileSize: attachment?.fileSize || null,
+        stickerUrl: sticker?.url || "",
+        stickerName: sticker?.name || "",
+        stickerType: sticker?.type || "",
+        replyToId: replyTo?._id || null,
+        forwardFromId: forwardFrom?._id || null,
       });
       setMessageText("");
       setAttachment(null);
+      setSticker(null);
+      setReplyTo(null);
+      setForwardFrom(null);
       await Promise.all([loadMessages(activeContactId), loadChats()]);
       scrollToBottom();
     } catch (error) {
@@ -312,17 +365,66 @@ function App() {
     }, 1200);
   };
 
-  const handleAttachment = (file) => {
+  const handleAttachment = async (file) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
+    setStatus("");
+    try {
+      const uploaded = await messagesApi.upload(file);
       setAttachment({
-        image: reader.result,
-        fileName: file.name,
-        fileType: file.type,
+        image: uploaded.fileType?.startsWith("image/") ? uploaded.fileUrl : "",
+        fileUrl: uploaded.fileUrl,
+        fileName: uploaded.fileName,
+        fileType: uploaded.fileType,
+        fileSize: uploaded.fileSize,
       });
-    };
-    reader.readAsDataURL(file);
+      setSticker(null);
+    } catch (error) {
+      handleAuthError(error);
+    }
+  };
+
+  const insertEmote = (emote) => {
+    setMessageText((prev) => `${prev}${emote}`);
+  };
+
+  const handleStickerSelect = (selected) => {
+    setSticker(selected);
+    setAttachment(null);
+    setShowStickers(false);
+  };
+
+  const handleReact = async (messageId, emoji) => {
+    try {
+      await messagesApi.react(messageId, { emoji });
+    } catch (error) {
+      handleAuthError(error);
+    }
+  };
+
+  const openForward = (message) => {
+    setForwardFrom(message);
+    setForwardOpen(true);
+    setSelectedForwardContact(null);
+  };
+
+  const submitForward = async () => {
+    if (!selectedForwardContact || !forwardFrom) return;
+    setStatus("");
+    try {
+      await messagesApi.send(selectedForwardContact._id, {
+        message: "",
+        forwardFromId: forwardFrom._id,
+      });
+      setForwardOpen(false);
+      setForwardFrom(null);
+      setSelectedForwardContact(null);
+      await Promise.all([
+        loadChats(),
+        activeContactId ? loadMessages(activeContactId) : Promise.resolve(),
+      ]);
+    } catch (error) {
+      handleAuthError(error);
+    }
   };
 
   const handleEditMessage = async (messageId) => {
@@ -360,449 +462,139 @@ function App() {
     }
   };
 
+  const handleProfileFieldChange = (field, value) => {
+    setProfileForm((prev) => ({ ...prev, [field]: value }));
+  };
+
   if (!user) {
     return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="brand">
-            <div className="brand-icon">LC</div>
-            <div>
-              <h1>Local Chat</h1>
-              <p className="muted">Sign in to start chatting locally.</p>
-            </div>
-          </div>
-          <form className="auth-form" onSubmit={handleAuthSubmit}>
-            {authMode === "signup" && (
-              <label>
-                Full name
-                <input
-                  value={authForm.fullName}
-                  onChange={(event) =>
-                    setAuthForm({ ...authForm, fullName: event.target.value })
-                  }
-                  placeholder="Jane Doe"
-                  required
-                />
-              </label>
-            )}
-            <label>
-              Email
-              <input
-                type="email"
-                value={authForm.email}
-                onChange={(event) =>
-                  setAuthForm({ ...authForm, email: event.target.value })
-                }
-                placeholder="you@example.com"
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={authForm.password}
-                onChange={(event) =>
-                  setAuthForm({ ...authForm, password: event.target.value })
-                }
-                placeholder="••••••••"
-                required
-              />
-            </label>
-            {authError && <div className="error">{authError}</div>}
-            <button type="submit" disabled={loading}>
-              {loading
-                ? "Please wait..."
-                : authMode === "signup"
-                  ? "Create account"
-                  : "Sign in"}
-            </button>
-          </form>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() =>
-              setAuthMode(authMode === "login" ? "signup" : "login")
-            }
-          >
-            {authMode === "login"
-              ? "Need an account? Sign up"
-              : "Already have an account? Sign in"}
-          </button>
-        </div>
-      </div>
+      <AuthView
+        authMode={authMode}
+        authForm={authForm}
+        setAuthForm={setAuthForm}
+        authError={authError}
+        loading={loading}
+        onSubmit={handleAuthSubmit}
+        onToggleMode={() =>
+          setAuthMode(authMode === "login" ? "signup" : "login")
+        }
+      />
     );
   }
 
+  const sendDisabled =
+    !messageText.trim() && !attachment && !forwardFrom && !sticker;
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="user-card">
-          <div className="avatar">
-            {user.profilePicture ? (
-              <img src={user.profilePicture} alt={user.fullName} />
-            ) : (
-              avatar
-            )}
-          </div>
-          <div className="user-meta">
-            <p className="user-name">{user.fullName}</p>
-            <p className="muted">{user.email}</p>
-          </div>
-          <div className="user-actions">
-            <button className="ghost" onClick={() => setProfileOpen(true)}>
-              Edit
-            </button>
-            <button className="ghost" onClick={handleLogout}>
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <div className="search">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search people or chats"
-          />
-        </div>
-
-        <div className="tabs">
-          <button
-            type="button"
-            className={tab === "chats" ? "active" : ""}
-            onClick={() => setTab("chats")}
-          >
-            Chats
-          </button>
-          <button
-            type="button"
-            className={tab === "contacts" ? "active" : ""}
-            onClick={() => setTab("contacts")}
-          >
-            Contacts
-          </button>
-        </div>
-
-        {tab === "chats" && (
-          <div className="list">
-            {filteredChats.length === 0 && (
-              <p className="muted">No chats yet. Start a conversation.</p>
-            )}
-            {filteredChats.map((chat) => (
-              <button
-                key={chat.user?._id}
-                type="button"
-                className={`list-item ${
-                  activeContactId === chat.user?._id ? "active" : ""
-                }`}
-                onClick={() => selectContact(chat.user)}
-              >
-                <div className="list-item-avatar">
-                  {chat.user?.profilePicture ? (
-                    <img
-                      src={chat.user.profilePicture}
-                      alt={chat.user.fullName}
-                    />
-                  ) : (
-                    contactInitials(chat.user)
-                  )}
-                </div>
-                <div className="list-item-title">
-                  {chat.user?.fullName}
-                  {chat.user?.online && <span className="online-dot" />}
-                </div>
-                <div className="muted small">
-                  {chat.lastMessage?.text || "No messages yet"}
-                </div>
-                {chat.unreadCount > 0 && (
-                  <span className="badge">{chat.unreadCount}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {tab === "contacts" && (
-          <div className="list">
-            {filteredContacts.length === 0 && (
-              <p className="muted">No contacts yet. Create another user.</p>
-            )}
-            {filteredContacts.map((contact) => (
-              <button
-                key={contact._id}
-                type="button"
-                className={`list-item ${
-                  activeContactId === contact._id ? "active" : ""
-                }`}
-                onClick={() => selectContact(contact)}
-              >
-                <div className="list-item-avatar">
-                  {contact.profilePicture ? (
-                    <img src={contact.profilePicture} alt={contact.fullName} />
-                  ) : (
-                    contactInitials(contact)
-                  )}
-                </div>
-                <div className="list-item-title">
-                  {contact.fullName}
-                  {onlineIds.includes(String(contact._id)) && (
-                    <span className="online-dot" />
-                  )}
-                </div>
-                <div className="muted small">{contact.email}</div>
-              </button>
-            ))}
-          </div>
-        )}
-      </aside>
-
-      <main className="chat-panel">
-        {!activeContact && (
-          <div className="empty-state">
-            <h2>Welcome back, {user.fullName.split(" ")[0]}</h2>
-            <p className="muted">Pick a contact or chat to start messaging.</p>
-          </div>
-        )}
-
-        {activeContact && (
-          <div className="chat-container">
-            <header>
-              <div>
-                <div className="chat-header">
-                  <div className="avatar small">
-                    {activeContact.profilePicture ? (
-                      <img
-                        src={activeContact.profilePicture}
-                        alt={activeContact.fullName}
-                      />
-                    ) : (
-                      contactInitials(activeContact)
-                    )}
-                  </div>
-                  <div>
-                    <h2>{activeContact.fullName}</h2>
-                    <p className="muted">
-                      {activeContact.email} ·{" "}
-                      {typingUsers[activeContactId]
-                        ? "Typing..."
-                        : onlineIds.includes(String(activeContactId))
-                          ? "Online"
-                          : "Offline"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => setActiveContact(null)}
-              >
-                Close
-              </button>
-            </header>
-
-            <div className="messages">
-              {messages.length === 0 && (
-                <p className="muted">No messages yet. Say hello 👋</p>
-              )}
-              {messages.map((msg, index) => {
-                const showDay =
-                  index === 0 ||
-                  formatDay(messages[index - 1].createdAt) !==
-                    formatDay(msg.createdAt);
-                const isOwn = msg.senderId === user._id;
-                return (
-                  <div key={msg._id}>
-                    {showDay && (
-                      <div className="day-separator">
-                        {formatDay(msg.createdAt)}
-                      </div>
-                    )}
-                    <div
-                      className={`message ${isOwn ? "outgoing" : "incoming"}`}
-                    >
-                      {msg.image && (
-                        <img
-                          src={msg.image}
-                          alt={msg.fileName || "attachment"}
-                          className="message-image"
-                        />
-                      )}
-                      {msg.fileName && !msg.image && (
-                        <div className="file-pill">
-                          <span>{msg.fileName}</span>
-                        </div>
-                      )}
-                      {editingMessageId === msg._id ? (
-                        <div className="edit-row">
-                          <input
-                            value={editingText}
-                            onChange={(event) =>
-                              setEditingText(event.target.value)
-                            }
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleEditMessage(msg._id)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => {
-                              setEditingMessageId(null);
-                              setEditingText("");
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <p>{msg.text}</p>
-                      )}
-                      <div className="message-meta">
-                        <span className="timestamp">
-                          {formatTime(msg.createdAt)}
-                        </span>
-                        {msg.editedAt && <span className="edited">Edited</span>}
-                        {isOwn && msg.readAt && (
-                          <span className="read">Read</span>
-                        )}
-                      </div>
-                      {isOwn && editingMessageId !== msg._id && (
-                        <div className="message-actions">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingMessageId(msg._id);
-                              setEditingText(msg.text || "");
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMessage(msg._id, "me")}
-                          >
-                            Delete for me
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMessage(msg._id, "all")}
-                          >
-                            Delete for all
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {attachment && (
-              <div className="attachment-preview">
-                <img src={attachment.image} alt="preview" />
-                <button type="button" onClick={() => setAttachment(null)}>
-                  Remove
-                </button>
-              </div>
-            )}
-
-            <form className="composer" onSubmit={handleSendMessage}>
-              <label className="attach">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(event) => handleAttachment(event.target.files[0])}
-                />
-                📎
-              </label>
-              <input
-                value={messageText}
-                onChange={(event) => handleTyping(event.target.value)}
-                placeholder="Type a message..."
-              />
-              <button
-                type="submit"
-                disabled={!messageText.trim() && !attachment}
-              >
-                Send
-              </button>
-            </form>
-            {status && <p className="error">{status}</p>}
-          </div>
-        )}
-      </main>
-
-      {notifications.length > 0 && (
-        <div className="notifications">
-          {notifications.map((note) => (
-            <div key={note.id} className="notification">
-              <strong>{note.title}</strong>
-              <p>{note.text}</p>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() =>
-                  setNotifications((prev) =>
-                    prev.filter((item) => item.id !== note.id),
-                  )
-                }
-              >
-                Dismiss
-              </button>
-            </div>
-          ))}
-        </div>
+    <div
+      className={`app-shell ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
+    >
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close navigation"
+        />
       )}
 
-      {profileOpen && (
-        <div className="modal">
-          <div className="modal-card">
-            <h2>Edit profile</h2>
-            <form onSubmit={handleProfileUpdate} className="auth-form">
-              <label>
-                Full name
-                <input
-                  value={profileForm.fullName}
-                  onChange={(event) =>
-                    setProfileForm({
-                      ...profileForm,
-                      fullName: event.target.value,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                Avatar URL
-                <input
-                  value={profileForm.profilePicture}
-                  onChange={(event) =>
-                    setProfileForm({
-                      ...profileForm,
-                      profilePicture: event.target.value,
-                    })
-                  }
-                />
-              </label>
-              <div className="modal-actions">
-                <button type="submit">Save</button>
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={() => setProfileOpen(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Sidebar
+        user={user}
+        avatar={avatar}
+        onCloseSidebar={() => setSidebarOpen(false)}
+        onOpenProfile={() => setProfileOpen(true)}
+        onLogout={handleLogout}
+        search={search}
+        onSearchChange={setSearch}
+        tab={tab}
+        onTabChange={setTab}
+        filteredChats={filteredChats}
+        filteredContacts={filteredContacts}
+        activeContactId={activeContactId}
+        contactInitials={contactInitials}
+        selectContact={selectContact}
+        onlineIds={onlineIds}
+      />
+
+      <ChatPanel
+        activeContact={activeContact}
+        user={user}
+        typingUsers={typingUsers}
+        onlineIds={onlineIds}
+        contactInitials={contactInitials}
+        onOpenSidebar={() => setSidebarOpen(true)}
+        onCloseChat={() => setActiveContact(null)}
+        messages={messages}
+        messagesEndRef={messagesEndRef}
+        editingMessageId={editingMessageId}
+        editingText={editingText}
+        onEditTextChange={setEditingText}
+        onStartEdit={(msg) => {
+          setEditingMessageId(msg._id);
+          setEditingText(msg.text || "");
+        }}
+        onSaveEdit={handleEditMessage}
+        onCancelEdit={() => {
+          setEditingMessageId(null);
+          setEditingText("");
+        }}
+        onReply={(msg) => {
+          setReplyTo(msg);
+          setForwardFrom(null);
+        }}
+        onForward={openForward}
+        onReact={handleReact}
+        onDelete={handleDeleteMessage}
+        replyTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
+        attachment={attachment}
+        onRemoveAttachment={() => setAttachment(null)}
+        sticker={sticker}
+        onRemoveSticker={() => setSticker(null)}
+        messageText={messageText}
+        onMessageChange={handleTyping}
+        onSendMessage={handleSendMessage}
+        onAttachment={handleAttachment}
+        showEmotes={showEmotes}
+        showStickers={showStickers}
+        onToggleEmotes={() => setShowEmotes((prev) => !prev)}
+        onToggleStickers={() => setShowStickers((prev) => !prev)}
+        emotes={EMOTES}
+        stickers={STICKERS}
+        onInsertEmote={insertEmote}
+        onSelectSticker={handleStickerSelect}
+        sendDisabled={sendDisabled}
+        status={status}
+      />
+
+      <Notifications
+        notifications={notifications}
+        onDismiss={(id) =>
+          setNotifications((prev) => prev.filter((item) => item.id !== id))
+        }
+      />
+
+      <ProfileModal
+        profileOpen={profileOpen}
+        profileForm={profileForm}
+        onChange={handleProfileFieldChange}
+        onSubmit={handleProfileUpdate}
+        onClose={() => setProfileOpen(false)}
+      />
+
+      <ForwardModal
+        forwardOpen={forwardOpen}
+        contacts={contacts}
+        selectedForwardContact={selectedForwardContact}
+        onSelectContact={setSelectedForwardContact}
+        onSend={submitForward}
+        onCancel={() => {
+          setForwardOpen(false);
+          setForwardFrom(null);
+          setSelectedForwardContact(null);
+        }}
+        contactInitials={contactInitials}
+      />
     </div>
   );
 }

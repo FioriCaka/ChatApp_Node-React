@@ -55,6 +55,27 @@ export const messagesApi = {
   online: () => request("/api/messages/online"),
   chats: () => request("/api/messages/chats"),
   messages: (userId) => request(`/api/messages/${userId}`),
+  upload: (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`${API_URL}/api/messages/upload`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        let message = "Upload failed";
+        try {
+          const data = await res.json();
+          message = data.message || message;
+        } catch {
+          message = "Upload failed";
+        }
+        throw new Error(message);
+      }
+      return res.json();
+    });
+  },
   send: (userId, payload) =>
     request(`/api/messages/send/${userId}`, {
       method: "POST",
@@ -62,6 +83,11 @@ export const messagesApi = {
     }),
   edit: (messageId, payload) =>
     request(`/api/messages/message/${messageId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  react: (messageId, payload) =>
+    request(`/api/messages/message/${messageId}/reaction`, {
       method: "PUT",
       body: JSON.stringify(payload),
     }),

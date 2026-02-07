@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { ENV } from "./lib/env.js";
+import Message from "./models/Message.js";
 
 let io;
 const onlineUsers = new Map();
@@ -46,6 +47,25 @@ export const initSocket = (httpServer) => {
     socket.on("typing", ({ to, isTyping }) => {
       if (!to) return;
       emitToUser(to, "typing", { from: socket.userId, isTyping });
+    });
+
+    socket.on("message:delivered", async ({ messageId }) => {
+      if (!messageId) return;
+      try {
+        const message = await Message.findById(messageId);
+        if (!message) return;
+        if (String(message.receiverId) !== String(socket.userId)) return;
+        if (!message.deliveredAt) {
+          message.deliveredAt = new Date();
+          await message.save();
+        }
+        emitToUser(message.senderId, "message:delivered", {
+          messageId: message._id,
+          deliveredAt: message.deliveredAt,
+        });
+      } catch (error) {
+        console.error("Delivered update error:", error);
+      }
     });
 
     socket.on("disconnect", () => {

@@ -3,6 +3,19 @@ import Message from "../models/Message.js";
 import User from "../models/User.js";
 import { emitToUser, getOnlineUsers } from "../socket.js";
 
+const buildPreview = (message) => ({
+  messageId: message._id,
+  senderId: message.senderId,
+  text: message.text || "",
+  image: message.image || "",
+  fileUrl: message.fileUrl || "",
+  fileName: message.fileName || "",
+  fileType: message.fileType || "",
+  stickerUrl: message.stickerUrl || "",
+  stickerName: message.stickerName || "",
+  stickerType: message.stickerType || "",
+});
+
 export const getAllContacts = async (req, res) => {
   try {
     const users = await User.find({ _id: { $ne: req.user._id } })
@@ -85,13 +98,20 @@ export const getAllChats = async (req, res) => {
           _id: chat.lastMessage._id,
           text: chat.lastMessage.text,
           image: chat.lastMessage.image,
+          fileUrl: chat.lastMessage.fileUrl,
           fileName: chat.lastMessage.fileName,
           fileType: chat.lastMessage.fileType,
+          stickerUrl: chat.lastMessage.stickerUrl,
+          stickerName: chat.lastMessage.stickerName,
+          stickerType: chat.lastMessage.stickerType,
           createdAt: chat.lastMessage.createdAt,
           senderId: chat.lastMessage.senderId,
           receiverId: chat.lastMessage.receiverId,
           readAt: chat.lastMessage.readAt,
           editedAt: chat.lastMessage.editedAt,
+          deliveredAt: chat.lastMessage.deliveredAt,
+          replyPreview: chat.lastMessage.replyPreview,
+          forwardedFrom: chat.lastMessage.forwardedFrom,
         },
       };
     });
@@ -125,11 +145,14 @@ export const getMessagesByUserId = async (req, res) => {
     if (unread.length > 0) {
       const ids = unread.map((msg) => msg._id);
       const readAt = new Date();
-      await Message.updateMany({ _id: { $in: ids } }, { $set: { readAt } });
+      await Message.updateMany(
+        { _id: { $in: ids } },
+        { $set: { readAt, deliveredAt: readAt } },
+      );
       emitToUser(id, "message:read", { messageIds: ids });
       const updated = messages.map((msg) =>
         ids.some((id) => String(id) === String(msg._id))
-          ? { ...msg, readAt }
+          ? { ...msg, readAt, deliveredAt: readAt }
           : msg,
       );
       return res.status(200).json(updated);
@@ -145,10 +168,24 @@ export const getMessagesByUserId = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { id } = req.params;
-    const { message, image, fileName, fileType } = req.body || {};
+    const {
+      message,
+      image,
+      fileUrl,
+      fileName,
+      fileType,
+      fileSize,
+      stickerUrl,
+      stickerName,
+      stickerType,
+      replyToId,
+      forwardFromId,
+    } = req.body || {};
 
-    if (!message && !image) {
-      return res.status(400).json({ message: "Message or image is required" });
+    if (!message && !image && !fileUrl && !stickerUrl && !forwardFromId) {
+      return res
+        .status(400)
+        .json({ message: "Message, media, or forward is required" });
     }
 
     const receiver = await User.findById(id).select("_id");
@@ -156,13 +193,58 @@ export const sendMessage = async (req, res) => {
       return res.status(404).json({ message: "Receiver not found" });
     }
 
+    let replyPreview = null;
+    let replyTo = null;
+    if (replyToId) {
+      const replyMessage = await Message.findById(replyToId);
+      if (!replyMessage) {
+        return res.status(404).json({ message: "Reply target not found" });
+      }
+      const isParticipant =
+        String(replyMessage.senderId) === String(req.user._id) ||
+        String(replyMessage.receiverId) === String(req.user._id);
+      if (!isParticipant) {
+        return res.status(403).json({ message: "Not allowed" });
+      }
+      replyPreview = buildPreview(replyMessage);
+      replyTo = replyMessage._id;
+    }
+
+    let forwardedFrom = null;
+    if (forwardFromId) {
+      const forwardedMessage = await Message.findById(forwardFromId);
+      if (!forwardedMessage) {
+        return res.status(404).json({ message: "Forward target not found" });
+      }
+      const isParticipant =
+        String(forwardedMessage.senderId) === String(req.user._id) ||
+        String(forwardedMessage.receiverId) === String(req.user._id);
+      if (!isParticipant) {
+        return res.status(403).json({ message: "Not allowed" });
+      }
+      forwardedFrom = buildPreview(forwardedMessage);
+    }
+
+    const computedImage =
+      image || (fileType?.startsWith("image/") ? fileUrl || "" : "");
+
     const newMessage = await Message.create({
       senderId: req.user._id,
       receiverId: id,
       text: message,
-      image: image || "",
+      image: computedImage,
+      fileUrl: fileUrl || "",
       fileName: fileName || "",
       fileType: fileType || "",
+      fileSize: fileSize || null,
+      stickerUrl: stickerUrl || "",
+      stickerName: stickerName || "",
+      stickerType: stickerType || "",
+      replyTo,
+      replyPreview,
+      forwardedFrom,
+      reactions: [],
+      deliveredAt: null,
       readAt: null,
     });
 
@@ -172,6 +254,58 @@ export const sendMessage = async (req, res) => {
   } catch (error) {
     console.error("Send message error:", error);
     res.status(500).json({ message: "Failed to send message" });
+  }
+};
+
+export const reactToMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { emoji } = req.body || {};
+    if (!emoji) {
+      return res.status(400).json({ message: "Emoji is required" });
+    }
+
+    const message = await Message.findById(id);
+    if (!message) return res.status(404).json({ message: "Not found" });
+
+    const isParticipant =
+      String(message.senderId) === String(req.user._id) ||
+      String(message.receiverId) === String(req.user._id);
+    if (!isParticipant) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    const existingIndex = (message.reactions || []).findIndex(
+      (reaction) => String(reaction.userId) === String(req.user._id),
+    );
+
+    if (existingIndex >= 0) {
+      const existing = message.reactions[existingIndex];
+      if (existing.emoji === emoji) {
+        message.reactions.splice(existingIndex, 1);
+      } else {
+        message.reactions[existingIndex].emoji = emoji;
+        message.reactions[existingIndex].createdAt = new Date();
+      }
+    } else {
+      message.reactions.push({ userId: req.user._id, emoji });
+    }
+
+    await message.save();
+
+    emitToUser(message.receiverId, "message:reaction", {
+      messageId: message._id,
+      reactions: message.reactions,
+    });
+    emitToUser(message.senderId, "message:reaction", {
+      messageId: message._id,
+      reactions: message.reactions,
+    });
+
+    res.status(200).json({ messageId: message._id, reactions: message.reactions });
+  } catch (error) {
+    console.error("React message error:", error);
+    res.status(500).json({ message: "Failed to react to message" });
   }
 };
 
@@ -244,4 +378,25 @@ export const deleteMessage = async (req, res) => {
 
 export const getOnlineContacts = async (_req, res) => {
   res.status(200).json(getOnlineUsers());
+};
+
+export const uploadMessageFile = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "File is required" });
+    }
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
+
+    res.status(201).json({
+      fileUrl,
+      fileName: req.file.originalname,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
+    });
+  } catch (error) {
+    console.error("Upload file error:", error);
+    res.status(500).json({ message: "Failed to upload file" });
+  }
 };
