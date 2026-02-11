@@ -24,9 +24,23 @@ app.use(cookieParser());
 app.use("/uploads", express.static(uploadsDir));
 
 app.use((req, res, next) => {
-  const origin = ENV.CLIENT_URL || "http://localhost:5173";
-  res.header("Access-Control-Allow-Origin", origin);
-  res.header("Access-Control-Allow-Credentials", "true");
+  const requestOrigin = req.headers.origin;
+  const allowedOrigins = (ENV.CLIENT_URL || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  let originToAllow = "";
+  if (ENV.NODE_ENV !== "production") {
+    originToAllow = requestOrigin || allowedOrigins[0] || "";
+  } else if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    originToAllow = requestOrigin;
+  }
+
+  if (originToAllow) {
+    res.header("Access-Control-Allow-Origin", originToAllow);
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
   res.header(
     "Access-Control-Allow-Headers",
     "Origin, X-Requested-With, Content-Type, Accept, Authorization",

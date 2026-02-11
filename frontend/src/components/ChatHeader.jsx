@@ -8,42 +8,53 @@ function ChatHeader({
 }) {
   const activeContactId = activeContact?._id;
   return (
-    <header>
-      <div>
-        <div className="chat-header">
-          <div className="avatar small">
-            {activeContact.profilePicture ? (
-              <img
-                src={activeContact.profilePicture}
-                alt={activeContact.fullName}
-              />
-            ) : (
-              contactInitials(activeContact)
-            )}
-          </div>
-          <div>
-            <h2>{activeContact.fullName}</h2>
-            <p className="muted">
-              {activeContact.email} ·{" "}
-              {typingUsers[activeContactId]
-                ? "Typing..."
-                : onlineIds.includes(String(activeContactId))
-                  ? "Online"
-                  : "Offline"}
-            </p>
-          </div>
-        </div>
-      </div>
-      <div className="header-actions">
+    <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 px-8 py-6 pb-4 max-[768px]:px-4 max-[768px]:py-4">
+      <div className="flex items-center justify-between mt-4">
         <button
-          className="ghost sidebar-toggle"
+          className="rounded-xl border border-slate-200 px-3 py-2 text-sm lg:hidden"
           type="button"
           onClick={onOpenSidebar}
         >
-          Menu
+          <img src="/menu-outline.svg" alt="Menu" className="h-6 w-6" />
         </button>
-        <button className="ghost" type="button" onClick={onCloseChat}>
-          Close
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-sky-400 text-slate-900 font-bold grid place-items-center overflow-hidden">
+              {activeContact.profilePicture ? (
+                <img
+                  src={activeContact.profilePicture}
+                  alt={activeContact.fullName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                contactInitials(activeContact)
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">
+                {activeContact.fullName}
+              </h2>
+              <p className="text-slate-500 text-sm">
+                {typingUsers[activeContactId]
+                  ? "Typing..."
+                  : onlineIds.includes(String(activeContactId))
+                    ? "Online"
+                    : "Offline"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          className="rounded-xl border-slate-200 px-3 py-2 text-sm"
+          type="button"
+          onClick={onCloseChat}
+        >
+          <img
+            src="/close-circle-outline.svg"
+            alt="close"
+            className="h-7 w-7"
+          />
         </button>
       </div>
     </header>

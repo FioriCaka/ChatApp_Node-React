@@ -1,7 +1,27 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const normalizeUrl = (value) => value.replace(/\/$/, "");
+
+export const getApiUrl = () => {
+  if (typeof window !== "undefined") {
+    const stored = window.localStorage.getItem("chatapp_api_url");
+    if (stored) return normalizeUrl(stored);
+  }
+  if (import.meta.env.VITE_API_URL)
+    return normalizeUrl(import.meta.env.VITE_API_URL);
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol;
+    const host = window.location.hostname;
+    return `${protocol}//${host}:3000`;
+  }
+  return "http://localhost:3000";
+};
+
+export const setApiUrl = (value) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem("chatapp_api_url", normalizeUrl(value));
+};
 
 const request = async (path, options = {}) => {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${getApiUrl()}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -48,6 +68,27 @@ export const authApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+  uploadProfilePicture: (file) => {
+    const formData = new FormData();
+    formData.append("profilePicture", file);
+    return fetch(`${getApiUrl()}/api/auth/profile-picture`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        let message = "Upload failed";
+        try {
+          const data = await res.json();
+          message = data.message || message;
+        } catch {
+          message = "Upload failed";
+        }
+        throw new Error(message);
+      }
+      return res.json();
+    });
+  },
 };
 
 export const messagesApi = {
@@ -58,7 +99,7 @@ export const messagesApi = {
   upload: (file) => {
     const formData = new FormData();
     formData.append("file", file);
-    return fetch(`${API_URL}/api/messages/upload`, {
+    return fetch(`${getApiUrl()}/api/messages/upload`, {
       method: "POST",
       credentials: "include",
       body: formData,

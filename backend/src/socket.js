@@ -16,9 +16,26 @@ const parseCookies = (cookieHeader = "") => {
 };
 
 export const initSocket = (httpServer) => {
+  const allowedOrigins = (ENV.CLIENT_URL || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
   io = new Server(httpServer, {
     cors: {
-      origin: ENV.CLIENT_URL || "http://localhost:5173",
+      origin: (origin, callback) => {
+        if (ENV.NODE_ENV !== "production") {
+          return callback(null, true);
+        }
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.length === 0) {
+          return callback(null, true);
+        }
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+      },
       credentials: true,
     },
   });

@@ -121,3 +121,27 @@ export const updateProfile = async (req, res) => {
       .json({ message: "Internal server error", error: error.message });
   }
 };
+
+export const updateProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+    req.user.profilePicture = imageUrl;
+    await req.user.save();
+
+    res.status(200).json({
+      _id: req.user._id,
+      fullName: req.user.fullName,
+      email: req.user.email,
+      profilePicture: req.user.profilePicture,
+    });
+  } catch (error) {
+    console.error("Update profile picture error:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};

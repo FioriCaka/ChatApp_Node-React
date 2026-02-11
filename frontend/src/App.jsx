@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { authApi, messagesApi } from "./api";
+import { authApi, messagesApi, getApiUrl, setApiUrl } from "./api";
 import AuthView from "./components/AuthView";
 import ChatPanel from "./components/ChatPanel";
 import ForwardModal from "./components/ForwardModal";
 import Notifications from "./components/Notifications";
 import ProfileModal from "./components/ProfileModal";
+import ServerSettingsModal from "./components/ServerSettingsModal";
 import Sidebar from "./components/Sidebar";
 import { EMOTES, STICKERS } from "./lib/chatConstants";
-import "./App.css";
 
 const emptyForm = { fullName: "", email: "", password: "" };
 const emptyProfile = { fullName: "", profilePicture: "" };
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -45,11 +44,18 @@ function App() {
   const [sticker, setSticker] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(emptyProfile);
+  const [profileFile, setProfileFile] = useState(null);
+  const [profilePreview, setProfilePreview] = useState("");
+  const [serverOpen, setServerOpen] = useState(false);
+  const [serverUrl, setServerUrl] = useState(getApiUrl());
 
   const socketRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
   const contactsRef = useRef([]);
+  const isAtBottomRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
 
   const activeContactId = activeContact?._id;
 
@@ -71,6 +77,20 @@ function App() {
       .join("")
       .slice(0, 2)
       .toUpperCase();
+  };
+
+  const resolveImageUrl = (value) => {
+    if (!value) return "";
+    if (value.startsWith("http") || value.startsWith("data:")) return value;
+    return `${getApiUrl()}${value}`;
+  };
+
+  const withProfileImage = (entity) => {
+    if (!entity) return entity;
+    return {
+      ...entity,
+      profilePicture: resolveImageUrl(entity.profilePicture),
+    };
   };
 
   const filteredContacts = useMemo(() => {
@@ -102,12 +122,17 @@ function App() {
 
   const loadContacts = async () => {
     const data = await messagesApi.contacts();
-    setContacts(data);
+    setContacts(data.map(withProfileImage));
   };
 
   const loadChats = async () => {
     const data = await messagesApi.chats();
-    setChats(data);
+    setChats(
+      data.map((chat) => ({
+        ...chat,
+        user: withProfileImage(chat.user),
+      })),
+    );
   };
 
   const loadMessages = async (contactId) => {
@@ -133,13 +158,41 @@ function App() {
   };
 
   useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const distance =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      isAtBottomRef.current = distance < 80;
+    };
+
+    handleScroll();
+    container.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [activeContactId]);
+
+  useEffect(() => {
+    if (!activeContactId) return;
+    if (messages.length > prevMessageCountRef.current) {
+      if (isAtBottomRef.current || prevMessageCountRef.current === 0) {
+        scrollToBottom();
+      }
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages, activeContactId]);
+
+  useEffect(() => {
     const init = async () => {
       try {
         const me = await authApi.me();
-        setUser(me);
+        setUser(withProfileImage(me));
         setProfileForm({
           fullName: me.fullName || "",
-          profilePicture: me.profilePicture || "",
+          profilePicture: resolveImageUrl(me.profilePicture || ""),
         });
         await Promise.all([loadContacts(), loadChats()]);
       } catch {
@@ -155,7 +208,7 @@ function App() {
 
   useEffect(() => {
     if (!user) return;
-    const socket = io(API_URL, { withCredentials: true });
+    const socket = io(getApiUrl(), { withCredentials: true });
     socketRef.current = socket;
 
     socket.on("presence:update", (ids) => {
@@ -288,10 +341,10 @@ function App() {
           ? await authApi.signup(payload)
           : await authApi.login(payload);
 
-      setUser(data);
+      setUser(withProfileImage(data));
       setProfileForm({
         fullName: data.fullName || "",
-        profilePicture: data.profilePicture || "",
+        profilePicture: resolveImageUrl(data.profilePicture || ""),
       });
       setAuthForm(emptyForm);
       await Promise.all([loadContacts(), loadChats()]);
@@ -327,7 +380,7 @@ function App() {
       return;
     setStatus("");
     try {
-      await messagesApi.send(activeContactId, {
+      const sent = await messagesApi.send(activeContactId, {
         message: messageText.trim(),
         image: attachment?.image || "",
         fileUrl: attachment?.fileUrl || "",
@@ -345,7 +398,58 @@ function App() {
       setSticker(null);
       setReplyTo(null);
       setForwardFrom(null);
-      await Promise.all([loadMessages(activeContactId), loadChats()]);
+      setMessages((prev) => [...prev, sent]);
+      setChats((prev) => {
+        const lastMessage = {
+          _id: sent._id,
+          text: sent.text,
+          image: sent.image,
+          fileUrl: sent.fileUrl,
+          fileName: sent.fileName,
+          fileType: sent.fileType,
+          createdAt: sent.createdAt,
+          senderId: sent.senderId,
+          receiverId: sent.receiverId,
+          readAt: sent.readAt,
+          editedAt: sent.editedAt,
+          deliveredAt: sent.deliveredAt,
+          replyPreview: sent.replyPreview,
+          forwardedFrom: sent.forwardedFrom,
+          stickerName: sent.stickerName,
+          stickerUrl: sent.stickerUrl,
+          stickerType: sent.stickerType,
+        };
+
+        const index = prev.findIndex(
+          (chat) => String(chat.user?._id) === String(activeContactId),
+        );
+
+        if (index >= 0) {
+          const updatedChat = {
+            ...prev[index],
+            lastMessage,
+          };
+          return [
+            updatedChat,
+            ...prev.slice(0, index),
+            ...prev.slice(index + 1),
+          ];
+        }
+
+        if (!activeContact) return prev;
+
+        return [
+          {
+            user: activeContact,
+            unreadCount: 0,
+            lastMessage,
+          },
+          ...prev,
+        ];
+      });
+      setTimeout(() => {
+        loadChats();
+      }, 800);
       scrollToBottom();
     } catch (error) {
       handleAuthError(error);
@@ -454,8 +558,19 @@ function App() {
     event.preventDefault();
     setStatus("");
     try {
-      const updated = await authApi.updateProfile(profileForm);
-      setUser(updated);
+      let updatedUser = user;
+      if (profileForm.fullName && profileForm.fullName !== user.fullName) {
+        updatedUser = await authApi.updateProfile({
+          fullName: profileForm.fullName,
+        });
+        setUser(withProfileImage(updatedUser));
+      }
+      if (profileFile) {
+        updatedUser = await authApi.uploadProfilePicture(profileFile);
+        setUser(withProfileImage(updatedUser));
+        setProfileFile(null);
+        setProfilePreview("");
+      }
       setProfileOpen(false);
     } catch (error) {
       handleAuthError(error);
@@ -464,6 +579,21 @@ function App() {
 
   const handleProfileFieldChange = (field, value) => {
     setProfileForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleProfileFileChange = (file) => {
+    if (!file) return;
+    setProfileFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setProfilePreview(reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleServerSave = () => {
+    if (!serverUrl.trim()) return;
+    setApiUrl(serverUrl.trim());
+    setServerOpen(false);
+    window.location.reload();
   };
 
   if (!user) {
@@ -486,13 +616,11 @@ function App() {
     !messageText.trim() && !attachment && !forwardFrom && !sticker;
 
   return (
-    <div
-      className={`app-shell ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
-    >
+    <div className="relative min-h-screen bg-linear-to-br from-slate-50 to-indigo-50 grid grid-cols-1 lg:grid-cols-[320px_1fr]">
       {sidebarOpen && (
         <button
           type="button"
-          className="sidebar-backdrop"
+          className="fixed inset-0 bg-slate-900/40 border-0 z-20 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-label="Close navigation"
         />
@@ -501,7 +629,9 @@ function App() {
       <Sidebar
         user={user}
         avatar={avatar}
+        sidebarOpen={sidebarOpen}
         onCloseSidebar={() => setSidebarOpen(false)}
+        onOpenServer={() => setServerOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
         onLogout={handleLogout}
         search={search}
@@ -525,6 +655,7 @@ function App() {
         onOpenSidebar={() => setSidebarOpen(true)}
         onCloseChat={() => setActiveContact(null)}
         messages={messages}
+        messagesContainerRef={messagesContainerRef}
         messagesEndRef={messagesEndRef}
         editingMessageId={editingMessageId}
         editingText={editingText}
@@ -559,6 +690,10 @@ function App() {
         showStickers={showStickers}
         onToggleEmotes={() => setShowEmotes((prev) => !prev)}
         onToggleStickers={() => setShowStickers((prev) => !prev)}
+        onClosePickers={() => {
+          setShowEmotes(false);
+          setShowStickers(false);
+        }}
         emotes={EMOTES}
         stickers={STICKERS}
         onInsertEmote={insertEmote}
@@ -574,10 +709,20 @@ function App() {
         }
       />
 
+      <ServerSettingsModal
+        open={serverOpen}
+        serverUrl={serverUrl}
+        onChange={setServerUrl}
+        onSave={handleServerSave}
+        onClose={() => setServerOpen(false)}
+      />
+
       <ProfileModal
         profileOpen={profileOpen}
         profileForm={profileForm}
+        profilePreview={profilePreview || profileForm.profilePicture}
         onChange={handleProfileFieldChange}
+        onFileChange={handleProfileFileChange}
         onSubmit={handleProfileUpdate}
         onClose={() => setProfileOpen(false)}
       />

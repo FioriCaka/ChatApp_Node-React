@@ -1,0 +1,10 @@
+{
+  "appId": "com.fiori.Wave",
+  "appName": "Wave",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "http://192.168.0.116:8100",
+    "cleartext": true
+  }
+}

@@ -10,36 +10,54 @@ function ForwardModal({
   if (!forwardOpen) return null;
 
   return (
-    <div className="modal">
-      <div className="modal-card">
+    <div className="fixed inset-0 bg-slate-900/50 grid place-items-center z-30">
+      <div className="w-[min(420px,90%)] bg-white p-6 rounded-2xl">
         <h2>Forward message</h2>
-        <div className="list">
+        <div className="mt-4 flex flex-col gap-2">
           {contacts.map((contact) => (
             <button
               key={contact._id}
               type="button"
-              className={`list-item ${
-                selectedForwardContact?._id === contact._id ? "active" : ""
+              className={`relative text-left rounded-xl px-4 py-3 bg-slate-100 text-slate-900 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 ${
+                selectedForwardContact?._id === contact._id
+                  ? "bg-sky-400 text-slate-900"
+                  : ""
               }`}
               onClick={() => onSelectContact(contact)}
             >
-              <div className="list-item-avatar">
+              <div className="w-9 h-9 rounded-xl bg-slate-500/30 grid place-items-center font-semibold overflow-hidden row-span-2">
                 {contact.profilePicture ? (
-                  <img src={contact.profilePicture} alt={contact.fullName} />
+                  <img
+                    src={contact.profilePicture}
+                    alt={contact.fullName}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   contactInitials(contact)
                 )}
               </div>
-              <div className="list-item-title">{contact.fullName}</div>
-              <div className="muted small">{contact.email}</div>
+              <div className="font-semibold col-start-2">
+                {contact.fullName}
+              </div>
+              <div className="text-slate-500 text-xs col-start-2">
+                {contact.email}
+              </div>
             </button>
           ))}
         </div>
-        <div className="modal-actions">
-          <button type="button" onClick={onSend}>
+        <div className="mt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={onSend}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-white"
+          >
             Send
           </button>
-          <button type="button" className="ghost" onClick={onCancel}>
+          <button
+            type="button"
+            className="rounded-xl border border-slate-200 px-4 py-2"
+            onClick={onCancel}
+          >
             Cancel
           </button>
         </div>

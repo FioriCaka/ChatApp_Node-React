@@ -8,18 +8,20 @@ function AuthView({
   onToggleMode,
 }) {
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="brand">
-          <div className="brand-icon">LC</div>
+    <div className="min-h-screen grid place-items-center bg-slate-900 text-slate-200 p-6">
+      <div className="w-full max-w-105 bg-slate-900 p-8 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-sky-400 text-slate-900 grid place-items-center font-bold">
+            LC
+          </div>
           <div>
             <h1>Local Chat</h1>
-            <p className="muted">Sign in to start chatting locally.</p>
+            <p className="text-slate-400">Sign in to start chatting locally.</p>
           </div>
         </div>
-        <form className="auth-form" onSubmit={onSubmit}>
+        <form className="mt-6 flex flex-col gap-4" onSubmit={onSubmit}>
           {authMode === "signup" && (
-            <label>
+            <label className="flex flex-col gap-2 text-sm">
               Full name
               <input
                 value={authForm.fullName}
@@ -28,10 +30,11 @@ function AuthView({
                 }
                 placeholder="Jane Doe"
                 required
+                className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-200"
               />
             </label>
           )}
-          <label>
+          <label className="flex flex-col gap-2 text-sm">
             Email
             <input
               type="email"
@@ -41,9 +44,10 @@ function AuthView({
               }
               placeholder="you@example.com"
               required
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-200"
             />
           </label>
-          <label>
+          <label className="flex flex-col gap-2 text-sm">
             Password
             <input
               type="password"
@@ -53,10 +57,15 @@ function AuthView({
               }
               placeholder="••••••••"
               required
+              className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-slate-200"
             />
           </label>
-          {authError && <div className="error">{authError}</div>}
-          <button type="submit" disabled={loading}>
+          {authError && <div className="text-rose-400">{authError}</div>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-xl bg-sky-400 py-3 font-semibold text-slate-900 disabled:opacity-60"
+          >
             {loading
               ? "Please wait..."
               : authMode === "signup"
@@ -64,7 +73,11 @@ function AuthView({
                 : "Sign in"}
           </button>
         </form>
-        <button type="button" className="ghost" onClick={onToggleMode}>
+        <button
+          type="button"
+          className="mt-4 rounded-xl border border-slate-800 px-3 py-2 text-sm"
+          onClick={onToggleMode}
+        >
           {authMode === "login"
             ? "Need an account? Sign up"
             : "Already have an account? Sign in"}

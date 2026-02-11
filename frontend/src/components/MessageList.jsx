@@ -13,12 +13,16 @@ function MessageList({
   onForward,
   onReact,
   onDelete,
+  messagesContainerRef,
   messagesEndRef,
 }) {
   return (
-    <div className="messages">
+    <div
+      ref={messagesContainerRef}
+      className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-3 max-[768px]:px-4 max-[520px]:px-3"
+    >
       {messages.length === 0 && (
-        <p className="muted">No messages yet. Say hello 👋</p>
+        <p className="text-slate-500">No messages yet. Say hello 👋</p>
       )}
       {messages.map((msg, index) => {
         const showDay =
@@ -42,11 +46,19 @@ function MessageList({
         return (
           <div key={msg._id}>
             {showDay && (
-              <div className="day-separator">{formatDay(msg.createdAt)}</div>
+              <div className="text-center text-xs text-slate-400 my-2">
+                {formatDay(msg.createdAt)}
+              </div>
             )}
-            <div className={`message ${isOwn ? "outgoing" : "incoming"}`}>
+            <div
+              className={`max-w-[70%] rounded-2xl p-3 text-sm shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${
+                isOwn
+                  ? "bg-sky-400 text-slate-900 self-end"
+                  : "bg-white border border-slate-200 self-start"
+              } max-[768px]:max-w-[85%] max-[520px]:max-w-full`}
+            >
               {forwarded && (
-                <div className="forwarded">
+                <div className="bg-slate-900/10 rounded-xl px-3 py-1.5 text-xs flex flex-col gap-1 mb-2">
                   Forwarded
                   <span>
                     {forwarded.text ||
@@ -57,7 +69,7 @@ function MessageList({
                 </div>
               )}
               {reply && (
-                <div className="reply-preview">
+                <div className="bg-slate-900/10 rounded-xl px-3 py-1.5 text-xs flex flex-col gap-1 mb-2">
                   <span>Replying to</span>
                   <strong>
                     {reply.text ||
@@ -71,20 +83,25 @@ function MessageList({
                 <img
                   src={msg.stickerUrl}
                   alt={msg.stickerName || "sticker"}
-                  className="sticker-image"
+                  className="w-40 h-40 object-contain rounded-2xl mb-2 bg-slate-900/5 p-2 max-[520px]:w-28 max-[520px]:h-28"
                 />
               )}
               {msg.image && (
                 <img
                   src={msg.image || msg.fileUrl}
                   alt={msg.fileName || "attachment"}
-                  className="message-image"
+                  className="w-full max-w-64 rounded-xl mb-2 block"
                 />
               )}
               {msg.fileName && !msg.image && (
-                <div className="file-pill">
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-900/10 px-3 py-1 text-sm mb-2">
                   {msg.fileUrl ? (
-                    <a href={msg.fileUrl} target="_blank" rel="noreferrer">
+                    <a
+                      href={msg.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-inherit no-underline"
+                    >
                       {msg.fileName}
                     </a>
                   ) : (
@@ -93,17 +110,22 @@ function MessageList({
                 </div>
               )}
               {editingMessageId === msg._id ? (
-                <div className="edit-row">
+                <div className="flex items-center gap-2">
                   <input
                     value={editingText}
                     onChange={(event) => onEditTextChange(event.target.value)}
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2"
                   />
-                  <button type="button" onClick={() => onSaveEdit(msg._id)}>
+                  <button
+                    type="button"
+                    onClick={() => onSaveEdit(msg._id)}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs"
+                  >
                     Save
                   </button>
                   <button
                     type="button"
-                    className="ghost"
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs"
                     onClick={onCancelEdit}
                   >
                     Cancel
@@ -112,42 +134,66 @@ function MessageList({
               ) : (
                 msg.text && <p>{msg.text}</p>
               )}
-              <div className="message-meta">
-                <span className="timestamp">{formatTime(msg.createdAt)}</span>
-                {msg.editedAt && <span className="edited">Edited</span>}
-                {isOwn && <span className="read">{statusLabel}</span>}
+              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                <span>{formatTime(msg.createdAt)}</span>
+                {msg.editedAt && <span className="opacity-70">Edited</span>}
+                {isOwn && <span className="opacity-70">{statusLabel}</span>}
               </div>
               {Object.keys(reactionCounts).length > 0 && (
-                <div className="reactions">
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
                   {Object.entries(reactionCounts).map(([emoji, count]) => (
-                    <span key={emoji} className="reaction-pill">
+                    <span
+                      key={emoji}
+                      className="rounded-full bg-slate-900/10 px-2 py-0.5 text-xs"
+                    >
                       {emoji} {count}
                     </span>
                   ))}
                 </div>
               )}
               {editingMessageId !== msg._id && (
-                <div className="message-actions">
+                <div className="flex flex-wrap gap-2 mt-2">
                   {isOwn && (
-                    <button type="button" onClick={() => onStartEdit(msg)}>
+                    <button
+                      type="button"
+                      className="rounded-full border border-slate-200 px-2 py-1 text-xs"
+                      onClick={() => onStartEdit(msg)}
+                    >
                       Edit
                     </button>
                   )}
-                  <button type="button" onClick={() => onReply(msg)}>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 px-2 py-1 text-xs"
+                    onClick={() => onReply(msg)}
+                  >
                     Reply
                   </button>
-                  <button type="button" onClick={() => onForward(msg)}>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 px-2 py-1 text-xs"
+                    onClick={() => onForward(msg)}
+                  >
                     Forward
                   </button>
-                  <button type="button" onClick={() => onReact(msg._id, "👍")}>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 px-2 py-1 text-xs"
+                    onClick={() => onReact(msg._id, "👍")}
+                  >
                     👍
                   </button>
-                  <button type="button" onClick={() => onReact(msg._id, "❤️")}>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 px-2 py-1 text-xs"
+                    onClick={() => onReact(msg._id, "❤️")}
+                  >
                     ❤️
                   </button>
                   {isOwn && (
                     <button
                       type="button"
+                      className="rounded-full border border-slate-200 px-2 py-1 text-xs"
                       onClick={() => onDelete(msg._id, "me")}
                     >
                       Delete for me
@@ -156,6 +202,7 @@ function MessageList({
                   {isOwn && (
                     <button
                       type="button"
+                      className="rounded-full border border-slate-200 px-2 py-1 text-xs"
                       onClick={() => onDelete(msg._id, "all")}
                     >
                       Delete for all

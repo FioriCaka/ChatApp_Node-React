@@ -249,6 +249,7 @@ export const sendMessage = async (req, res) => {
     });
 
     emitToUser(id, "message:new", newMessage);
+    emitToUser(req.user._id, "message:new", newMessage);
 
     res.status(201).json(newMessage);
   } catch (error) {
@@ -302,7 +303,9 @@ export const reactToMessage = async (req, res) => {
       reactions: message.reactions,
     });
 
-    res.status(200).json({ messageId: message._id, reactions: message.reactions });
+    res
+      .status(200)
+      .json({ messageId: message._id, reactions: message.reactions });
   } catch (error) {
     console.error("React message error:", error);
     res.status(500).json({ message: "Failed to react to message" });

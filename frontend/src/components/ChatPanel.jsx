@@ -15,6 +15,7 @@ function ChatPanel({
   onOpenSidebar,
   onCloseChat,
   messages,
+  messagesContainerRef,
   messagesEndRef,
   editingMessageId,
   editingText,
@@ -40,6 +41,7 @@ function ChatPanel({
   showStickers,
   onToggleEmotes,
   onToggleStickers,
+  onClosePickers,
   emotes,
   stickers,
   onInsertEmote,
@@ -49,7 +51,7 @@ function ChatPanel({
 }) {
   if (!activeContact) {
     return (
-      <main className="chat-panel">
+      <main className="bg-slate-50 flex flex-col h-screen">
         <EmptyState
           userFirstName={user.fullName.split(" ")[0]}
           onOpenSidebar={onOpenSidebar}
@@ -59,8 +61,8 @@ function ChatPanel({
   }
 
   return (
-    <main className="chat-panel">
-      <div className="chat-container">
+    <main className="bg-slate-50 flex flex-col h-screen">
+      <div className="flex flex-col h-full">
         <ChatHeader
           activeContact={activeContact}
           contactInitials={contactInitials}
@@ -73,6 +75,7 @@ function ChatPanel({
         <MessageList
           messages={messages}
           userId={user._id}
+          messagesContainerRef={messagesContainerRef}
           editingMessageId={editingMessageId}
           editingText={editingText}
           onEditTextChange={onEditTextChange}
@@ -99,23 +102,28 @@ function ChatPanel({
           <StickerPreview sticker={sticker} onRemove={onRemoveSticker} />
         )}
 
-        <MessageComposer
-          messageText={messageText}
-          onMessageChange={onMessageChange}
-          onSendMessage={onSendMessage}
-          onAttachment={onAttachment}
-          onToggleEmotes={onToggleEmotes}
-          onToggleStickers={onToggleStickers}
-          showEmotes={showEmotes}
-          showStickers={showStickers}
-          emotes={emotes}
-          stickers={stickers}
-          onInsertEmote={onInsertEmote}
-          onSelectSticker={onSelectSticker}
-          sendDisabled={sendDisabled}
-        />
+        {status && (
+          <p className="text-rose-400 px-8 pb-4 max-[768px]:px-4">{status}</p>
+        )}
 
-        {status && <p className="error">{status}</p>}
+        <div className="sticky bottom-0 z-10 bg-white/95 backdrop-blur border-t border-slate-200">
+          <MessageComposer
+            messageText={messageText}
+            onMessageChange={onMessageChange}
+            onSendMessage={onSendMessage}
+            onAttachment={onAttachment}
+            onToggleEmotes={onToggleEmotes}
+            onToggleStickers={onToggleStickers}
+            onClosePickers={onClosePickers}
+            showEmotes={showEmotes}
+            showStickers={showStickers}
+            emotes={emotes}
+            stickers={stickers}
+            onInsertEmote={onInsertEmote}
+            onSelectSticker={onSelectSticker}
+            sendDisabled={sendDisabled}
+          />
+        </div>
       </div>
     </main>
   );
