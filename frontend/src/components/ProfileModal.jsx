@@ -10,8 +10,8 @@ function ProfileModal({
   if (!profileOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 grid place-items-center z-30">
-      <div className="w-[min(420px,90%)] bg-white p-6 rounded-2xl">
+    <div className="fixed inset-0 bg-slate-900/50 grid place-items-center z-30 ui-fade-in">
+      <div className="w-[min(420px,90%)] liquid-card liquid-sheen p-6 rounded-2xl theme-header-grad ui-pop-in">
         <h2>Edit profile</h2>
         <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
           <label className="flex flex-col gap-2 text-sm">
@@ -19,7 +19,7 @@ function ProfileModal({
             <input
               value={profileForm.fullName}
               onChange={(event) => onChange("fullName", event.target.value)}
-              className="rounded-lg border border-slate-200 px-3 py-2"
+              className="rounded-lg border px-3 py-2 liquid-input ui-ease ui-focus"
             />
           </label>
           <label className="flex flex-col gap-2 text-sm">
@@ -28,7 +28,7 @@ function ProfileModal({
               type="file"
               accept="image/*"
               onChange={(event) => onFileChange(event.target.files?.[0])}
-              className="rounded-lg border border-slate-200 px-3 py-2"
+              className="rounded-lg border px-3 py-2 liquid-input ui-ease ui-focus"
             />
           </label>
           {profilePreview && (
@@ -44,13 +44,13 @@ function ProfileModal({
           <div className="flex gap-3">
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-white"
+              className="rounded-xl theme-accent-bg px-4 py-2 ui-ease ui-press ui-hover ui-focus"
             >
               Save
             </button>
             <button
               type="button"
-              className="rounded-xl border border-slate-200 px-4 py-2"
+              className="rounded-xl border border-slate-200 px-4 py-2 bg-white/60 backdrop-blur ui-ease ui-press ui-hover ui-focus"
               onClick={onClose}
             >
               Cancel

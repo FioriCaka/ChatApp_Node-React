@@ -11,7 +11,7 @@ function AuthView({
     <div className="min-h-screen grid place-items-center bg-slate-900 text-slate-200 p-6">
       <div className="w-full max-w-105 bg-slate-900 p-8 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.35)]">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-400 text-slate-900 grid place-items-center font-bold">
+          <div className="w-12 h-12 rounded-2xl theme-accent-bg grid place-items-center font-bold">
             LC
           </div>
           <div>
@@ -64,7 +64,7 @@ function AuthView({
           <button
             type="submit"
             disabled={loading}
-            className="rounded-xl bg-sky-400 py-3 font-semibold text-slate-900 disabled:opacity-60"
+            className="rounded-xl theme-accent-bg py-3 font-semibold disabled:opacity-60"
           >
             {loading
               ? "Please wait..."

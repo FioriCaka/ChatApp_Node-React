@@ -19,7 +19,7 @@ function MessageList({
   return (
     <div
       ref={messagesContainerRef}
-      className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-3 max-[768px]:px-4 max-[520px]:px-3"
+      className="flex-1 min-h-0 overflow-y-auto px-8 py-6 flex flex-col gap-3 max-[768px]:px-4 max-[520px]:px-3"
     >
       {messages.length === 0 && (
         <p className="text-slate-500">No messages yet. Say hello 👋</p>
@@ -44,17 +44,17 @@ function MessageList({
               : "Sent"
           : "";
         return (
-          <div key={msg._id}>
+          <div key={msg._id} className="ui-bubble-in">
             {showDay && (
               <div className="text-center text-xs text-slate-400 my-2">
                 {formatDay(msg.createdAt)}
               </div>
             )}
             <div
-              className={`max-w-[70%] rounded-2xl p-3 text-sm shadow-[0_8px_20px_rgba(15,23,42,0.08)] ${
+              className={`max-w-[70%] rounded-2xl p-3 text-sm shadow-[0_8px_20px_rgba(15,23,42,0.08)] ui-ease ${
                 isOwn
-                  ? "bg-sky-400 text-slate-900 self-end"
-                  : "bg-white border border-slate-200 self-start"
+                  ? "theme-accent-bg self-end"
+                  : "bg-white/75 backdrop-blur border border-slate-200 self-start"
               } max-[768px]:max-w-[85%] max-[520px]:max-w-full`}
             >
               {forwarded && (

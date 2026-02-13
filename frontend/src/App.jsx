@@ -15,6 +15,7 @@ const emptyProfile = { fullName: "", profilePicture: "" };
 
 function App() {
   const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [authMode, setAuthMode] = useState("login");
   const [authForm, setAuthForm] = useState(emptyForm);
   const [authError, setAuthError] = useState("");
@@ -197,9 +198,27 @@ function App() {
         await Promise.all([loadContacts(), loadChats()]);
       } catch {
         setUser(null);
+      } finally {
+        setAuthLoading(false);
       }
     };
     init();
+  }, []);
+
+  useEffect(() => {
+    const updateVvh = () => {
+      const height = window.visualViewport?.height || window.innerHeight;
+      document.documentElement.style.setProperty("--vvh", `${height}px`);
+    };
+
+    updateVvh();
+    window.visualViewport?.addEventListener("resize", updateVvh);
+    window.addEventListener("resize", updateVvh);
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateVvh);
+      window.removeEventListener("resize", updateVvh);
+    };
   }, []);
 
   useEffect(() => {
@@ -596,6 +615,23 @@ function App() {
     window.location.reload();
   };
 
+  if (authLoading) {
+    return (
+      <div className="bg-slate-950 text-slate-200 grid place-items-center overflow-hidden h-(--vvh) min-h-(--vvh) max-h-(--vvh)">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl text-slate-900 font-bold grid place-items-center">
+            <img
+              src="/voice_wave_icon_black.png"
+              alt="Loading"
+              className="w-16 h-16 object-cover"
+            />
+          </div>
+          <p className="text-sm text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <AuthView
@@ -616,130 +652,137 @@ function App() {
     !messageText.trim() && !attachment && !forwardFrom && !sticker;
 
   return (
-    <div className="relative min-h-screen bg-linear-to-br from-slate-50 to-indigo-50 grid grid-cols-1 lg:grid-cols-[320px_1fr]">
-      {sidebarOpen && (
-        <button
-          type="button"
-          className="fixed inset-0 bg-slate-900/40 border-0 z-20 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Close navigation"
+    <div className="relative theme-app-bg liquid-shell liquid-motion overflow-hidden h-(--vvh) min-h-(--vvh) max-h-(--vvh)">
+      <div className="liquid-blobs" aria-hidden="true">
+        <span className="liquid-blob one" />
+        <span className="liquid-blob two" />
+        <span className="liquid-blob three" />
+      </div>
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[320px_1fr] h-full">
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="fixed inset-0 bg-slate-900/40 border-0 z-20 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close navigation"
+          />
+        )}
+
+        <Sidebar
+          user={user}
+          avatar={avatar}
+          sidebarOpen={sidebarOpen}
+          onCloseSidebar={() => setSidebarOpen(false)}
+          onOpenServer={() => setServerOpen(true)}
+          onOpenProfile={() => setProfileOpen(true)}
+          onLogout={handleLogout}
+          search={search}
+          onSearchChange={setSearch}
+          tab={tab}
+          onTabChange={setTab}
+          filteredChats={filteredChats}
+          filteredContacts={filteredContacts}
+          activeContactId={activeContactId}
+          contactInitials={contactInitials}
+          selectContact={selectContact}
+          onlineIds={onlineIds}
         />
-      )}
 
-      <Sidebar
-        user={user}
-        avatar={avatar}
-        sidebarOpen={sidebarOpen}
-        onCloseSidebar={() => setSidebarOpen(false)}
-        onOpenServer={() => setServerOpen(true)}
-        onOpenProfile={() => setProfileOpen(true)}
-        onLogout={handleLogout}
-        search={search}
-        onSearchChange={setSearch}
-        tab={tab}
-        onTabChange={setTab}
-        filteredChats={filteredChats}
-        filteredContacts={filteredContacts}
-        activeContactId={activeContactId}
-        contactInitials={contactInitials}
-        selectContact={selectContact}
-        onlineIds={onlineIds}
-      />
+        <ChatPanel
+          activeContact={activeContact}
+          user={user}
+          typingUsers={typingUsers}
+          onlineIds={onlineIds}
+          contactInitials={contactInitials}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          onCloseChat={() => setActiveContact(null)}
+          messages={messages}
+          messagesContainerRef={messagesContainerRef}
+          messagesEndRef={messagesEndRef}
+          editingMessageId={editingMessageId}
+          editingText={editingText}
+          onEditTextChange={setEditingText}
+          onStartEdit={(msg) => {
+            setEditingMessageId(msg._id);
+            setEditingText(msg.text || "");
+          }}
+          onSaveEdit={handleEditMessage}
+          onCancelEdit={() => {
+            setEditingMessageId(null);
+            setEditingText("");
+          }}
+          onReply={(msg) => {
+            setReplyTo(msg);
+            setForwardFrom(null);
+          }}
+          onForward={openForward}
+          onReact={handleReact}
+          onDelete={handleDeleteMessage}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+          attachment={attachment}
+          onRemoveAttachment={() => setAttachment(null)}
+          sticker={sticker}
+          onRemoveSticker={() => setSticker(null)}
+          messageText={messageText}
+          onMessageChange={handleTyping}
+          onSendMessage={handleSendMessage}
+          onAttachment={handleAttachment}
+          showEmotes={showEmotes}
+          showStickers={showStickers}
+          onToggleEmotes={() => setShowEmotes((prev) => !prev)}
+          onToggleStickers={() => setShowStickers((prev) => !prev)}
+          onClosePickers={() => {
+            setShowEmotes(false);
+            setShowStickers(false);
+          }}
+          emotes={EMOTES}
+          stickers={STICKERS}
+          onInsertEmote={insertEmote}
+          onSelectSticker={handleStickerSelect}
+          sendDisabled={sendDisabled}
+          status={status}
+        />
 
-      <ChatPanel
-        activeContact={activeContact}
-        user={user}
-        typingUsers={typingUsers}
-        onlineIds={onlineIds}
-        contactInitials={contactInitials}
-        onOpenSidebar={() => setSidebarOpen(true)}
-        onCloseChat={() => setActiveContact(null)}
-        messages={messages}
-        messagesContainerRef={messagesContainerRef}
-        messagesEndRef={messagesEndRef}
-        editingMessageId={editingMessageId}
-        editingText={editingText}
-        onEditTextChange={setEditingText}
-        onStartEdit={(msg) => {
-          setEditingMessageId(msg._id);
-          setEditingText(msg.text || "");
-        }}
-        onSaveEdit={handleEditMessage}
-        onCancelEdit={() => {
-          setEditingMessageId(null);
-          setEditingText("");
-        }}
-        onReply={(msg) => {
-          setReplyTo(msg);
-          setForwardFrom(null);
-        }}
-        onForward={openForward}
-        onReact={handleReact}
-        onDelete={handleDeleteMessage}
-        replyTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        attachment={attachment}
-        onRemoveAttachment={() => setAttachment(null)}
-        sticker={sticker}
-        onRemoveSticker={() => setSticker(null)}
-        messageText={messageText}
-        onMessageChange={handleTyping}
-        onSendMessage={handleSendMessage}
-        onAttachment={handleAttachment}
-        showEmotes={showEmotes}
-        showStickers={showStickers}
-        onToggleEmotes={() => setShowEmotes((prev) => !prev)}
-        onToggleStickers={() => setShowStickers((prev) => !prev)}
-        onClosePickers={() => {
-          setShowEmotes(false);
-          setShowStickers(false);
-        }}
-        emotes={EMOTES}
-        stickers={STICKERS}
-        onInsertEmote={insertEmote}
-        onSelectSticker={handleStickerSelect}
-        sendDisabled={sendDisabled}
-        status={status}
-      />
+        <Notifications
+          notifications={notifications}
+          onDismiss={(id) =>
+            setNotifications((prev) => prev.filter((item) => item.id !== id))
+          }
+        />
 
-      <Notifications
-        notifications={notifications}
-        onDismiss={(id) =>
-          setNotifications((prev) => prev.filter((item) => item.id !== id))
-        }
-      />
+        <ServerSettingsModal
+          open={serverOpen}
+          serverUrl={serverUrl}
+          onChange={setServerUrl}
+          onSave={handleServerSave}
+          onClose={() => setServerOpen(false)}
+        />
 
-      <ServerSettingsModal
-        open={serverOpen}
-        serverUrl={serverUrl}
-        onChange={setServerUrl}
-        onSave={handleServerSave}
-        onClose={() => setServerOpen(false)}
-      />
+        <ProfileModal
+          profileOpen={profileOpen}
+          profileForm={profileForm}
+          profilePreview={profilePreview || profileForm.profilePicture}
+          onChange={handleProfileFieldChange}
+          onFileChange={handleProfileFileChange}
+          onSubmit={handleProfileUpdate}
+          onClose={() => setProfileOpen(false)}
+        />
 
-      <ProfileModal
-        profileOpen={profileOpen}
-        profileForm={profileForm}
-        profilePreview={profilePreview || profileForm.profilePicture}
-        onChange={handleProfileFieldChange}
-        onFileChange={handleProfileFileChange}
-        onSubmit={handleProfileUpdate}
-        onClose={() => setProfileOpen(false)}
-      />
-
-      <ForwardModal
-        forwardOpen={forwardOpen}
-        contacts={contacts}
-        selectedForwardContact={selectedForwardContact}
-        onSelectContact={setSelectedForwardContact}
-        onSend={submitForward}
-        onCancel={() => {
-          setForwardOpen(false);
-          setForwardFrom(null);
-          setSelectedForwardContact(null);
-        }}
-        contactInitials={contactInitials}
-      />
+        <ForwardModal
+          forwardOpen={forwardOpen}
+          contacts={contacts}
+          selectedForwardContact={selectedForwardContact}
+          onSelectContact={setSelectedForwardContact}
+          onSend={submitForward}
+          onCancel={() => {
+            setForwardOpen(false);
+            setForwardFrom(null);
+            setSelectedForwardContact(null);
+          }}
+          contactInitials={contactInitials}
+        />
+      </div>
     </div>
   );
 }

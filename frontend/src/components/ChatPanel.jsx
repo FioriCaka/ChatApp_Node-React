@@ -51,7 +51,7 @@ function ChatPanel({
 }) {
   if (!activeContact) {
     return (
-      <main className="bg-slate-50 flex flex-col h-screen">
+      <main className="bg-transparent flex flex-col h-[var(--vvh)] min-h-[var(--vvh)] max-h-[var(--vvh)] overflow-hidden">
         <EmptyState
           userFirstName={user.fullName.split(" ")[0]}
           onOpenSidebar={onOpenSidebar}
@@ -61,8 +61,8 @@ function ChatPanel({
   }
 
   return (
-    <main className="bg-slate-50 flex flex-col h-screen">
-      <div className="flex flex-col h-full">
+    <main className="bg-transparent flex flex-col h-[var(--vvh)] min-h-[var(--vvh)] max-h-[var(--vvh)] overflow-hidden">
+      <div className="flex flex-col h-full min-h-0">
         <ChatHeader
           activeContact={activeContact}
           contactInitials={contactInitials}

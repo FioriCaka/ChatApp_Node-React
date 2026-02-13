@@ -19,12 +19,12 @@ function Sidebar({
 }) {
   return (
     <aside
-      className={`bg-slate-900 text-slate-200 p-6 flex flex-col gap-6 shadow-[12px_0_40px_rgba(15,23,42,0.2)] lg:static lg:translate-x-0 lg:w-auto fixed inset-y-0 left-0 w-[min(320px,85vw)] z-30 transition-transform overflow-auto ${
+      className={`liquid-panel text-slate-200 py-10 px-3 flex flex-col gap-6 shadow-[12px_0_40px_rgba(15,23,42,0.2)] lg:static lg:translate-x-0 lg:w-auto fixed inset-y-0 left-0 w-[min(320px,85vw)] z-30 transition-transform overflow-auto ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
-      <div className="flex items-center gap-3 rounded-2xl bg-slate-900/90 p-4 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.1)]">
-        <div className="w-11 h-11 rounded-[14px] bg-sky-400 text-slate-900 font-bold grid place-items-center overflow-hidden">
+      <div className="flex items-center gap-3 rounded-2xl bg-slate-900/60 p-4 shadow-[inset_0_0_0_1px_rgba(148,163,184,0.1)]">
+        <div className="w-11 h-11 rounded-[14px] theme-accent-bg font-bold grid place-items-center overflow-hidden">
           {user.profilePicture ? (
             <img
               src={user.profilePicture}
@@ -41,19 +41,19 @@ function Sidebar({
         </div>
         <div className="flex flex-col gap-2">
           <button
-            className="rounded-xl border border-slate-800 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={onOpenServer}
           >
             Server
           </button>
           <button
-            className="rounded-xl border border-slate-800 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={onOpenProfile}
           >
             Edit
           </button>
           <button
-            className="rounded-xl border border-slate-800 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={onLogout}
           >
             Logout
@@ -66,7 +66,7 @@ function Sidebar({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search people or chats"
-          className="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-slate-200"
+          className="w-full rounded-xl border border-slate-800 bg-slate-900/70 backdrop-blur px-3 py-2 text-slate-200 ui-ease ui-focus"
         />
       </div>
 
@@ -74,10 +74,8 @@ function Sidebar({
         <button
           type="button"
           className={`flex-1 rounded-xl border border-slate-800 px-3 py-2 text-sm ${
-            tab === "chats"
-              ? "bg-sky-400 text-slate-900 border-transparent"
-              : ""
-          }`}
+            tab === "chats" ? "theme-accent-bg border-transparent" : ""
+          } ui-ease ui-press ui-hover ui-focus`}
           onClick={() => onTabChange("chats")}
         >
           Chats
@@ -85,10 +83,8 @@ function Sidebar({
         <button
           type="button"
           className={`flex-1 rounded-xl border border-slate-800 px-3 py-2 text-sm ${
-            tab === "contacts"
-              ? "bg-sky-400 text-slate-900 border-transparent"
-              : ""
-          }`}
+            tab === "contacts" ? "theme-accent-bg border-transparent" : ""
+          } ui-ease ui-press ui-hover ui-focus`}
           onClick={() => onTabChange("contacts")}
         >
           Contacts
@@ -106,16 +102,16 @@ function Sidebar({
             <button
               key={chat.user?._id}
               type="button"
-              className={`relative text-left rounded-xl px-4 py-3 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 transition-transform hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(15,23,42,0.3)] ${
+              className={`relative text-left rounded-xl px-4 py-3 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 ui-ease ui-press ui-hover ui-focus ${
                 activeContactId === chat.user?._id
-                  ? "text-sky-400 border-transparent"
+                  ? "theme-accent-text border-transparent"
                   : "bg-slate-800 text-slate-200"
               }`}
               style={
                 activeContactId === chat.user?._id
                   ? {
                       backgroundImage:
-                        "linear-gradient(to bottom left, rgb(5, 154, 247), transparent)",
+                        "linear-gradient(to left, var(--theme-accent), transparent)",
                       backgroundBlendMode: "screen",
                     }
                   : undefined
@@ -146,7 +142,7 @@ function Sidebar({
                   (chat.lastMessage ? "Attachment" : "No messages yet")}
               </div>
               {chat.unreadCount > 0 && (
-                <span className="absolute top-2 right-2 rounded-full bg-sky-400 text-slate-900 px-2 py-0.5 text-xs font-semibold border-transparent">
+                <span className="absolute top-2 right-2 rounded-full theme-accent-text px-2 py-0.5 text-xs font-semibold border-transparent">
                   {chat.unreadCount}
                 </span>
               )}
@@ -166,11 +162,20 @@ function Sidebar({
             <button
               key={contact._id}
               type="button"
-              className={`relative text-left rounded-xl px-4 py-3 bg-slate-800 text-slate-200 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 transition-transform hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(15,23,42,0.3)] ${
+              className={`relative text-left rounded-xl px-4 py-3 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 ui-ease ui-press ui-hover ui-focus  ${
                 activeContactId === contact._id
-                  ? "bg-sky-400 text-slate-900 border-transparent"
-                  : ""
+                  ? "theme-accent-text border-transparent"
+                  : "bg-slate-800/70 text-slate-200"
               }`}
+              style={
+                activeContactId === contact._id
+                  ? {
+                      backgroundImage:
+                        "linear-gradient(to left, var(--theme-accent), transparent)",
+                      backgroundBlendMode: "screen",
+                    }
+                  : undefined
+              }
               onClick={() => selectContact(contact)}
             >
               <div className="w-9 h-9 rounded-xl bg-slate-500/30 grid place-items-center font-semibold overflow-hidden row-span-2">

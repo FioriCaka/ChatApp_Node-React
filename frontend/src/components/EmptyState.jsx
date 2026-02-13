@@ -5,7 +5,7 @@ function EmptyState({ userFirstName, onOpenSidebar }) {
       style={{ backgroundImage: "url('/balloon-background.jpg')" }}
     >
       <button
-        className="rounded-xl border relative border-slate-200 px-3 py-2 h-12 w-12 text-sm lg:hidden top-10 left-3"
+        className="rounded-xl border relative bg-white/30 border-white/60 px-3 py-2 h-12 w-12 text-sm lg:hidden top-10 left-3 backdrop-blur-3xl shadow-lg shadow-black/10"
         type="button"
         onClick={onOpenSidebar}
       >

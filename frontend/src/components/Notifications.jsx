@@ -6,13 +6,13 @@ function Notifications({ notifications, onDismiss }) {
       {notifications.map((note) => (
         <div
           key={note.id}
-          className="bg-slate-900 text-slate-200 p-4 rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.35)] flex flex-col gap-2 w-[min(320px,90vw)]"
+          className="liquid-panel liquid-sheen text-slate-200 p-4 rounded-xl shadow-[0_8px_24px_rgba(15,23,42,0.35)] flex flex-col gap-2 w-[min(320px,90vw)] ui-toast-in"
         >
           <strong>{note.title}</strong>
           <p>{note.text}</p>
           <button
             type="button"
-            className="rounded-xl border border-slate-800 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={() => onDismiss(note.id)}
           >
             Dismiss

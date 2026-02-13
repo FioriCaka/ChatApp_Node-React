@@ -40,11 +40,11 @@ function MessageComposer({
   return (
     <>
       <form
-        className="flex gap-3 px-8 py-4 border-t border-slate-200 bg-white max-[768px]:flex-col max-[768px]:px-4"
+        className="flex gap-3 px-8 py-4 border-t border-slate-200 liquid-card liquid-sheen max-[768px]:flex-col max-[768px]:px-4 ui-slide-up"
         onSubmit={onSendMessage}
       >
         <div className="relative flex gap-2 items-center" ref={pickerRef}>
-          <label className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 cursor-pointer bg-white">
+          <label className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 cursor-pointer bg-white/70 backdrop-blur ui-ease ui-press ui-hover">
             <input
               type="file"
               accept="*/*"
@@ -55,20 +55,20 @@ function MessageComposer({
           </label>
           <button
             type="button"
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white/60 backdrop-blur ui-ease ui-press ui-hover ui-focus"
             onClick={onToggleEmotes}
           >
             🙂
           </button>
           <button
             type="button"
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white/60 backdrop-blur ui-ease ui-press ui-hover ui-focus"
             onClick={onToggleStickers}
           >
             🧩
           </button>
           {showEmotes && (
-            <div className="absolute bottom-full left-0 mb-3 z-20 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+            <div className="absolute bottom-full left-0 mb-3 z-20 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-3 shadow-lg ui-pop-in">
               {emotes.map((emote) => (
                 <button
                   key={emote}
@@ -82,7 +82,7 @@ function MessageComposer({
             </div>
           )}
           {showStickers && (
-            <div className="absolute bottom-full left-0 mb-3 z-20 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
+            <div className="absolute bottom-full left-0 mb-3 z-20 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-3 shadow-lg ui-pop-in">
               {stickers.map((item) => (
                 <button
                   key={item.name}
@@ -100,19 +100,25 @@ function MessageComposer({
             </div>
           )}
         </div>
-        <input
-          value={messageText}
-          onChange={(event) => onMessageChange(event.target.value)}
-          placeholder="Type a message..."
-          className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-base"
-        />
-        <button
-          type="submit"
-          disabled={sendDisabled}
-          className="rounded-xl bg-slate-900 px-5 py-3 text-white disabled:opacity-60 max-[768px]:w-full"
-        >
-          Send
-        </button>
+        <div className="flex gap-3 items-center flex-1 flex-row">
+          <input
+            value={messageText}
+            onChange={(event) => onMessageChange(event.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-base liquid-input ui-ease ui-focus"
+          />
+          <button
+            type="submit"
+            disabled={sendDisabled}
+            className="rounded-full theme-accent-bg px-3 py-3 disabled:opacity-60 w-fit ui-ease ui-press ui-hover ui-focus"
+          >
+            <img
+              src="/fast_forward.svg"
+              alt="Send"
+              className="w-8 h-8 bg-transparent"
+            />
+          </button>
+        </div>
       </form>
     </>
   );

@@ -10,17 +10,17 @@ function ForwardModal({
   if (!forwardOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 grid place-items-center z-30">
-      <div className="w-[min(420px,90%)] bg-white p-6 rounded-2xl">
+    <div className="fixed inset-0 bg-slate-900/50 grid place-items-center z-30 ui-fade-in">
+      <div className="w-[min(420px,90%)] liquid-card liquid-sheen p-6 rounded-2xl theme-header-grad ui-pop-in">
         <h2>Forward message</h2>
         <div className="mt-4 flex flex-col gap-2">
           {contacts.map((contact) => (
             <button
               key={contact._id}
               type="button"
-              className={`relative text-left rounded-xl px-4 py-3 bg-slate-100 text-slate-900 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 ${
+              className={`relative text-left rounded-xl px-4 py-3 bg-slate-100 text-slate-900 grid grid-cols-[40px_1fr] grid-rows-[auto_auto] gap-x-3 gap-y-0.5 ui-ease ui-press ui-hover ui-focus ${
                 selectedForwardContact?._id === contact._id
-                  ? "bg-sky-400 text-slate-900"
+                  ? "theme-accent-bg"
                   : ""
               }`}
               onClick={() => onSelectContact(contact)}
@@ -49,13 +49,13 @@ function ForwardModal({
           <button
             type="button"
             onClick={onSend}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-white"
+            className="rounded-xl theme-accent-bg px-4 py-2 ui-ease ui-press ui-hover ui-focus"
           >
             Send
           </button>
           <button
             type="button"
-            className="rounded-xl border border-slate-200 px-4 py-2"
+            className="rounded-xl border border-slate-200 px-4 py-2 bg-white/60 backdrop-blur ui-ease ui-press ui-hover ui-focus"
             onClick={onCancel}
           >
             Cancel
