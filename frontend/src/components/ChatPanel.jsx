@@ -13,6 +13,7 @@ function ChatPanel({
   onlineIds,
   contactInitials,
   onOpenSidebar,
+  onOpenProfile,
   onCloseChat,
   messages,
   messagesContainerRef,
@@ -51,17 +52,18 @@ function ChatPanel({
 }) {
   if (!activeContact) {
     return (
-      <main className="bg-transparent flex flex-col h-[var(--vvh)] min-h-[var(--vvh)] max-h-[var(--vvh)] overflow-hidden">
+      <main className="bg-transparent flex flex-col h-(--vvh) min-h-(--vvh) max-h-(--vvh) overflow-hidden">
         <EmptyState
           userFirstName={user.fullName.split(" ")[0]}
           onOpenSidebar={onOpenSidebar}
+          onOpenProfile={onOpenProfile}
         />
       </main>
     );
   }
 
   return (
-    <main className="bg-transparent flex flex-col h-[var(--vvh)] min-h-[var(--vvh)] max-h-[var(--vvh)] overflow-hidden">
+    <main className="bg-transparent flex flex-col h-(--vvh) min-h-(--vvh) max-h-(--vvh) overflow-hidden">
       <div className="flex flex-col h-full min-h-0">
         <ChatHeader
           activeContact={activeContact}

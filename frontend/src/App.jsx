@@ -695,6 +695,7 @@ function App() {
           onlineIds={onlineIds}
           contactInitials={contactInitials}
           onOpenSidebar={() => setSidebarOpen(true)}
+          onOpenProfile={() => setProfileOpen(true)}
           onCloseChat={() => setActiveContact(null)}
           messages={messages}
           messagesContainerRef={messagesContainerRef}
