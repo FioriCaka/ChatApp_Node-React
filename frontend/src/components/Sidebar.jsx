@@ -40,23 +40,31 @@ function Sidebar({
           <p className="text-slate-400 text-sm">{user.email}</p>
         </div>
         <div className="flex flex-col gap-2">
-          <button
+          {/* <button
             className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={onOpenServer}
           >
             Server
-          </button>
+          </button> */}
           <button
-            className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
+            className="rounded-xl border items-center w-fit border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={onOpenProfile}
           >
-            Edit
+            <img
+              src="/edit-user.svg"
+              alt="Edit Profile"
+              className="h-6 w-6 text-white"
+            />
           </button>
           <button
-            className="rounded-xl border border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
+            className="rounded-xl border w-fit border-slate-800 px-3 py-2 text-sm ui-ease ui-press ui-hover ui-focus"
             onClick={onLogout}
           >
-            Logout
+            <img
+              src="/log-out.svg"
+              alt="Logout"
+              className="h-6 w-6 text-white"
+            />
           </button>
         </div>
       </div>
